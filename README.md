@@ -18,7 +18,7 @@ GoSeekr is a **Local Service Area Provider Finder (LASPF) System**, designed to 
 ## 🚀 Installation Guide
 1. **Clone the repository:**
    ```sh
-   git clone https://github.com/verol14/laspf-system.git
+   git clone https://github.com/ctrlv-ince/laspf-system.git
    cd laspf-system
    ```
 2. **Import the database:**
@@ -49,10 +49,10 @@ GoSeekr is a **Local Service Area Provider Finder (LASPF) System**, designed to 
 │-- 📁 admin/         # Administrator functionalities
 │-- 📁 providers/     # Local Service Provider functionalities
 │-- 📁 users/         # Customer functionalities
+│-- 📄 index.php      # Main entry point
 │-- 📄 login.php      # Login page
-│-- 📄 index.php
-refv      # Main entry point
 │-- 📄 README.md      # Project documentation
+│-- 📄 reviews.php    # Review page
 ```
 
 ## 🤝 Contributing
@@ -65,7 +65,7 @@ This project is open-source and available under the **MIT License**.
 ---
 
 ### **📧 Need Help?**
-For issues or suggestions, [open an issue](https://github.com/verol14/laspf-system/issues).  
+For issues or suggestions, [open an issue](https://github.com/ctrlv-ince/laspf-system/issues).  
 
 ---
 
