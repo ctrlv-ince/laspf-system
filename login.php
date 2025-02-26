@@ -1,60 +1,52 @@
 <?php
+// Start the session
 session_start();
 
-// Database connection
-// $host = 'localhost';
-// $db = 'your_database_name';
-// $user = 'your_database_user';
-// $pass = 'your_database_password';
+// Include the database configuration file
+require_once './database/config.php';
 
-// $conn = new mysqli($host, $user, $pass, $db);
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get form data
+    $email = $_POST['email'];
+    $password = $_POST['password'];
 
-// if ($conn->connect_error) {
-//     die("Connection failed: " . $conn->connect_error);
-// }
+    // Fetch user from the database
+    $stmt = $conn->prepare("SELECT user_id, password_hash, role FROM users WHERE email = ?");
+    $stmt->bind_param("s", $email);
+    $stmt->execute();
+    $stmt->store_result();
+    $stmt->bind_result($user_id, $password_hash, $role);
 
-// // Handle login form submission
-// if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-//     $email = $_POST['email'];
-//     $password = $_POST['password'];
+    if ($stmt->fetch() && password_verify($password, $password_hash)) {
+        // Login successful
+        $_SESSION['user_id'] = $user_id;
+        $_SESSION['role'] = $role;
 
-//     // Fetch user from the database
-//     $stmt = $conn->prepare("SELECT user_id, password_hash, role FROM users WHERE email = ?");
-//     $stmt->bind_param("s", $email);
-//     $stmt->execute();
-//     $stmt->store_result();
-//     $stmt->bind_result($user_id, $password_hash, $role);
+        // Redirect based on role
+        switch ($role) {
+            case 'admin':
+                header("Location: ./admin/admin_dashboard.php");
+                break;
+            case 'provider':
+                header("Location: ./providers/provider_dashboard.php");
+                break;
+            case 'user':
+                header("Location: ./users/user_dashboard.php");
+                break;
+            default:
+                echo "<script>alert('Invalid role');</script>";
+                break;
+        }
+        exit();
+    } else {
+        echo "<script>alert('Invalid email or password');</script>";
+    }
 
-//     if ($stmt->fetch() && password_verify($password, $password_hash)) {
-//         // Login successful
-//         $_SESSION['user_id'] = $user_id;
-//         $_SESSION['role'] = $role;
-
-//         // Redirect based on role
-//         switch ($role) {
-//             case 'admin':
-//                 header("Location: ./admin/admin_dashboard.php");
-//                 break;
-//             case 'provider':
-//                 header("Location: ./providers/provider_dashboard.php");
-//                 break;
-//             case 'user':
-//                 header("Location: ./users/user_dashboard.php");
-//                 break;
-//             default:
-//                 echo "<script>alert('Invalid role');</script>";
-//                 break;
-//         }
-//         exit();
-//     } else {
-//         echo "<script>alert('Invalid email or password');</script>";
-//     }
-
-//     $stmt->close();
-//     $conn->close();
-// }
+    $stmt->close();
+    $conn->close();
+}
 ?>
-
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -74,15 +66,11 @@ session_start();
             border-radius: 8px;
             box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
         }
-        .login-container h2 {
-            margin-bottom: 20px;
-            text-align: center;
-        }
     </style>
 </head>
 <body>
     <div class="login-container">
-        <h2>Login</h2>
+        <h2 class="text-center mb-4">Login</h2>
         <form action="" method="POST">
             <!-- Email -->
             <div class="mb-3">
@@ -103,7 +91,7 @@ session_start();
 
             <!-- Register Link -->
             <div class="mt-3 text-center">
-                <p>Don't have an account? <a href="./userregistration.php">Register as User</a></p>
+                <p>Don't have an account? <a href="register.php">Register here</a></p>
             </div>
         </form>
     </div>

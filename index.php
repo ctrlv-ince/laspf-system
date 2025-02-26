@@ -46,7 +46,7 @@
                     <li class="nav-item"><a class="nav-link" href="#how-it-works">How It Works</a></li>
                     <li class="nav-item"><a class="nav-link" href="./reviews.php">Reviews</a></li>
                     <li class="nav-item"><a class="btn btn-primary ms-lg-3" href="./providers/provider_registration.php">Join as Provider</a></li>
-                    <li class="nav-item"><a class="btn btn-outline-primary ms-lg-2" href="#login">Login</a></li>
+                    <li class="nav-item"><a class="btn btn-outline-primary ms-lg-2" href="login.php">Login</a></li>
                     <li class="nav-item"><a class="btn btn-success ms-lg-2" href="./users/user_registration.php">Register as User</a></li>
                 </ul>
             </div>

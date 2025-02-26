@@ -1,70 +1,101 @@
+<?php
+session_start();
+
+// Check if the user is logged in and has the role 'user'
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'user') {
+    header('Location: ../login.php');
+    exit();
+}
+
+// Include the database configuration
+require_once '../database/config.php';
+
+// Initialize variables for search and filter
+$search = '';
+$filter_category = '';
+$where_clause = "WHERE 1"; // Default condition
+$params = [];
+
+// Handle search and filter form submission
+if ($_SERVER['REQUEST_METHOD'] === 'GET') {
+    if (isset($_GET['search'])) {
+        $search = trim($_GET['search']);
+        if (!empty($search)) {
+            $where_clause .= " AND (s.service_name LIKE :search OR p.business_name LIKE :search)";
+            $params[':search'] = "%$search%";
+        }
+    }
+
+    if (isset($_GET['filter_category'])) {
+        $filter_category = trim($_GET['filter_category']);
+        if (!empty($filter_category)) {
+            $where_clause .= " AND p.service_category = :category";
+            $params[':category'] = $filter_category;
+        }
+    }
+}
+
+// Fetch available services with provider details
+$query = "
+    SELECT s.service_id, s.service_name, s.service_description, s.price, s.duration_minutes,
+           p.provider_id, p.business_name, p.service_category
+    FROM services s
+    JOIN providers p ON s.provider_id = p.provider_id
+    $where_clause
+    ORDER BY s.service_name ASC
+";
+
+$stmt = $pdo->prepare($query);
+$stmt->execute($params);
+$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>My Bookings - GoSeekr</title>
-    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
-    <style>
-        body {
-            background-color: #f8f9fa;
-        }
-        .booking-container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
-            background: #fff;
-            border-radius: 8px;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-        }
-    </style>
+    <title>GoSeekr - Find and Book Services</title>
+    <link rel="stylesheet" href="../css/styles.css"> <!-- Include your CSS file -->
 </head>
 <body>
-    <nav class="navbar navbar-expand-lg navbar-light bg-light">
-        <div class="container">
-            <a class="navbar-brand" href="#">GoSeekr User</a>
-            <div class="collapse navbar-collapse">
-                <ul class="navbar-nav ms-auto">
-                    <li class="nav-item">
-                        <a class="nav-link" href="user_dashboard.php">Dashboard</a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="logout.php">Logout</a>
-                    </li>
-                </ul>
+    <div class="container">
+        <h1>Find and Book Services</h1>
+
+        <!-- Search and Filter Form -->
+        <form method="GET" action="user_bookings.php">
+            <div class="search-filter">
+                <input type="text" name="search" placeholder="Search by service or provider" value="<?php echo htmlspecialchars($search); ?>">
+                <select name="filter_category">
+                    <option value="">All Categories</option>
+                    <option value="plumbing" <?php echo $filter_category === 'plumbing' ? 'selected' : ''; ?>>Plumbing</option>
+                    <option value="cleaning" <?php echo $filter_category === 'cleaning' ? 'selected' : ''; ?>>Cleaning</option>
+                    <option value="electrician" <?php echo $filter_category === 'electrician' ? 'selected' : ''; ?>>Electrician</option>
+                    <option value="carpentry" <?php echo $filter_category === 'carpentry' ? 'selected' : ''; ?>>Carpentry</option>
+                    <option value="other" <?php echo $filter_category === 'other' ? 'selected' : ''; ?>>Other</option>
+                </select>
+                <button type="submit">Apply</button>
             </div>
+        </form>
+
+        <!-- Services List -->
+        <div class="services-list">
+            <?php if (empty($services)): ?>
+                <p>No services found.</p>
+            <?php else: ?>
+                <?php foreach ($services as $service): ?>
+                    <div class="service-card">
+                        <h3><?php echo htmlspecialchars($service['service_name']); ?></h3>
+                        <p><strong>Provider:</strong> <?php echo htmlspecialchars($service['business_name']); ?></p>
+                        <p><strong>Category:</strong> <?php echo htmlspecialchars($service['service_category']); ?></p>
+                        <p><strong>Price:</strong> ₱<?php echo number_format($service['price'], 2); ?></p>
+                        <p><strong>Duration:</strong> <?php echo $service['duration_minutes']; ?> minutes</p>
+                        <p><?php echo htmlspecialchars($service['service_description']); ?></p>
+                        <a href="book_service.php?service_id=<?php echo $service['service_id']; ?>" class="btn-book">Book Now</a>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
         </div>
-    </nav>
-
-    <div class="booking-container">
-        <h2>My Bookings</h2>
-        <table class="table table-bordered">
-            <thead>
-                <tr>
-                    <th>Service</th>
-                    <th>Provider</th>
-                    <th>Start Time</th>
-                    <th>End Time</th>
-                    <th>Status</th>
-                    <th>Actions</th>
-                </tr>
-            </thead>
-            <tbody>
-                <!-- Example Row -->
-                <tr>
-                    <td>Pipe Repair</td>
-                    <td>John's Plumbing</td>
-                    <td>2023-10-15 10:00</td>
-                    <td>2023-10-15 11:00</td>
-                    <td>Confirmed</td>
-                    <td>
-                        <button class="btn btn-sm btn-danger">Cancel</button>
-                    </td>
-                </tr>
-            </tbody>
-        </table>
     </div>
-
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>

@@ -1,62 +1,56 @@
 <?php
-// Database connection
-// $host = 'localhost';
-// $db = 'your_database_name';
-// $user = 'your_database_user';
-// $pass = 'your_database_password';
+// Include database config
+require_once '../database/config.php';
 
-// $conn = new mysqli($host, $user, $pass, $db);
+// Handle form submission
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    // Get form data
+    $full_name = $_POST['full_name'];
+    $email = $_POST['email'];
+    $password = password_hash($_POST['password'], PASSWORD_BCRYPT); // Hash password
+    $phone_number = $_POST['phone_number'];
+    $address = $_POST['address'];
 
-// if ($conn->connect_error) {
-//     die("Connection failed: " . $conn->connect_error);
-// }
+    // Handle file upload
+    $id_file = $_FILES['id_file'];
+    $upload_dir = 'uploads/'; // Directory to store uploaded files
+    $file_name = uniqid() . '_' . basename($id_file['name']); // Unique file name
+    $file_path = $upload_dir . $file_name;
 
-// // Handle form submission
-// if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-//     // Get form data
-//     $full_name = $_POST['full_name'];
-//     $email = $_POST['email'];
-//     $password = password_hash($_POST['password'], PASSWORD_BCRYPT); // Hash password
-//     $phone_number = $_POST['phone_number'];
-//     $address = $_POST['address'];
+    // Validate file type and size
+    $allowed_types = ['pdf', 'jpg', 'jpeg', 'png'];
+    $file_extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
+    $max_size = 5 * 1024 * 1024; // 5MB
 
-//     // Handle file upload
-//     $id_file = $_FILES['id_file'];
-//     $upload_dir = 'uploads/'; // Directory to store uploaded files
-//     $file_name = uniqid() . '_' . basename($id_file['name']); // Unique file name
-//     $file_path = $upload_dir . $file_name;
+    if (!in_array($file_extension, $allowed_types)) {
+        die("Error: Only PDF, JPG, JPEG, and PNG files are allowed.");
+    }
 
-//     // Validate file type and size
-//     $allowed_types = ['pdf', 'jpg', 'jpeg', 'png'];
-//     $file_extension = strtolower(pathinfo($file_path, PATHINFO_EXTENSION));
-//     $max_size = 5 * 1024 * 1024; // 5MB
+    if ($id_file['size'] > $max_size) {
+        die("Error: File size exceeds the maximum limit of 5MB.");
+    }
 
-//     if (!in_array($file_extension, $allowed_types)) {
-//         die("Error: Only PDF, JPG, JPEG, and PNG files are allowed.");
-//     }
+    // Move uploaded file to the upload directory
+    if (!move_uploaded_file($id_file['tmp_name'], $file_path)) {
+        die("Error: Failed to upload file.");
+    }
 
-//     if ($id_file['size'] > $max_size) {
-//         die("Error: File size exceeds the maximum limit of 5MB.");
-//     }
+    // Insert user into the database
+    $stmt = $conn->prepare("
+        INSERT INTO users (email, password_hash, role, full_name, phone_number, address, id_file_path)
+        VALUES (?, ?, 'user', ?, ?, ?, ?)
+    ");
+    $stmt->bind_param("ssssss", $email, $password, $full_name, $phone_number, $address, $file_path);
 
-//     // Move uploaded file to the upload directory
-//     if (!move_uploaded_file($id_file['tmp_name'], $file_path)) {
-//         die("Error: Failed to upload file.");
-//     }
+    if ($stmt->execute()) {
+        echo "<script>alert('Registration successful!'); window.location.href = '../index.php';</script>";
+    } else {
+        echo "<script>alert('Error: " . $stmt->error . "');</script>";
+    }
 
-//     // Insert user into the database
-//     $stmt = $conn->prepare("INSERT INTO users (username, password_hash, email, user_type, full_name, phone_number, address, id_file_path) VALUES (?, ?, ?, 'customer', ?, ?, ?, ?)");
-//     $stmt->bind_param("sssssss", $email, $password, $email, $full_name, $phone_number, $address, $file_path);
-
-//     if ($stmt->execute()) {
-//         echo "<script>alert('Registration successful!'); window.location.href = 'index.php';</script>";
-//     } else {
-//         echo "<script>alert('Error: " . $stmt->error . "');</script>";
-//     }
-
-//     $stmt->close();
-//     $conn->close();
-// }
+    $stmt->close();
+    $conn->close();
+}
 ?>
 
 <!DOCTYPE html>
