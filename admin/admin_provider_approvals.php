@@ -1,3 +1,72 @@
+<?php
+session_start();
+
+// Redirect if not logged in or not an admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: login.php");
+    exit();
+}
+
+// Include the database configuration
+require_once '../database/config.php';
+
+// Handle Approve/Reject Actions
+if ($_SERVER['REQUEST_METHOD'] === 'POST') {
+    if (isset($_POST['approve_provider'])) {
+        $provider_id = intval($_POST['provider_id']);
+        $notes = trim($_POST['notes']);
+
+        // Update provider status to 'approved'
+        $query = "UPDATE providers SET is_verified = TRUE WHERE provider_id = :provider_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([':provider_id' => $provider_id]);
+
+        // Optionally, save notes to a separate table or log
+    } elseif (isset($_POST['reject_provider'])) {
+        $provider_id = intval($_POST['provider_id']);
+        $reason = trim($_POST['reason']);
+
+        // Update provider status to 'rejected'
+        $query = "UPDATE providers SET is_verified = FALSE WHERE provider_id = :provider_id";
+        $stmt = $pdo->prepare($query);
+        $stmt->execute([':provider_id' => $provider_id]);
+
+        // Optionally, save rejection reason to a separate table or log
+    }
+
+    // Redirect to refresh the page
+    header("Location: admin_provider_approvals.php");
+    exit();
+}
+
+// Fetch provider applications
+$query = "
+    SELECT p.provider_id, p.business_name, p.service_category, p.is_verified, p.created_at,
+           u.full_name, u.email, u.phone_number
+    FROM providers p
+    JOIN users u ON p.user_id = u.user_id
+    ORDER BY p.created_at DESC
+";
+$stmt = $pdo->prepare($query);
+$stmt->execute();
+$providers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Calculate stats
+$pending_count = 0;
+$approved_today_count = 0;
+$rejected_today_count = 0;
+
+foreach ($providers as $provider) {
+    if ($provider['is_verified'] === null) {
+        $pending_count++;
+    } elseif ($provider['is_verified'] === true && date('Y-m-d', strtotime($provider['created_at'])) === date('Y-m-d')) {
+        $approved_today_count++;
+    } elseif ($provider['is_verified'] === false && date('Y-m-d', strtotime($provider['created_at'])) === date('Y-m-d')) {
+        $rejected_today_count++;
+    }
+}
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -61,43 +130,7 @@
     <div class="container-fluid">
         <div class="row">
             <!-- Sidebar -->
-            <div class="col-md-3 col-lg-2 px-0 sidebar">
-                <div class="text-white p-3">
-                    <h5>ServiceHub Admin</h5>
-                </div>
-                <ul class="nav flex-column">
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin_dashboard.php">
-                            <i class="fas fa-tachometer-alt"></i> Dashboard
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link active" href="admin_provider_approvals.php">
-                            <i class="fas fa-user-check"></i> Provider Approvals
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin_users.php">
-                            <i class="fas fa-users"></i> Users
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin_services.php">
-                            <i class="fas fa-tools"></i> Services
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin_reviews.php">
-                            <i class="fas fa-star"></i> Reviews
-                        </a>
-                    </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="admin_settings.php">
-                            <i class="fas fa-cog"></i> Settings
-                        </a>
-                    </li>
-                </ul>
-            </div>
+            <?php include 'admin_navbar.php'; ?>
 
             <!-- Main Content -->
             <div class="col-md-9 col-lg-10 px-4 py-3">
@@ -117,9 +150,9 @@
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <button class="btn btn-outline-danger btn-sm">
+                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
+                        </a>
                     </div>
                 </div>
 
@@ -129,7 +162,7 @@
                         <div class="card bg-warning text-white">
                             <div class="card-body">
                                 <h5 class="card-title">Pending Approvals</h5>
-                                <h2 class="mb-0">12</h2>
+                                <h2 class="mb-0"><?php echo $pending_count; ?></h2>
                             </div>
                         </div>
                     </div>
@@ -137,7 +170,7 @@
                         <div class="card bg-success text-white">
                             <div class="card-body">
                                 <h5 class="card-title">Approved Today</h5>
-                                <h2 class="mb-0">8</h2>
+                                <h2 class="mb-0"><?php echo $approved_today_count; ?></h2>
                             </div>
                         </div>
                     </div>
@@ -145,7 +178,7 @@
                         <div class="card bg-danger text-white">
                             <div class="card-body">
                                 <h5 class="card-title">Rejected Today</h5>
-                                <h2 class="mb-0">3</h2>
+                                <h2 class="mb-0"><?php echo $rejected_today_count; ?></h2>
                             </div>
                         </div>
                     </div>
@@ -198,70 +231,110 @@
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Pending Application -->
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <img src="/api/placeholder/48/48" class="rounded-circle me-2" alt="Provider">
-                                                <div>
-                                                    <div class="fw-bold">Juan Dela Cruz</div>
-                                                    <small class="text-muted">Applied: Feb 20, 2025</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div>Clean Pro Services</div>
-                                            <small class="text-muted">Home Cleaning</small>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#documentModal">
-                                                <i class="fas fa-file-alt"></i> View
-                                            </button>
-                                            <span class="badge bg-success">Complete</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-pending">Pending</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal">
-                                                <i class="fas fa-check"></i> Approve
-                                            </button>
-                                            <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                                                <i class="fas fa-times"></i> Reject
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <?php if (empty($providers)): ?>
+                                        <tr>
+                                            <td colspan="5" class="text-center">No provider applications found.</td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php foreach ($providers as $provider): ?>
+                                            <tr>
+                                                <td>
+                                                    <div class="d-flex align-items-center">
+                                                        <img src="/api/placeholder/48/48" class="rounded-circle me-2" alt="Provider">
+                                                        <div>
+                                                            <div class="fw-bold"><?php echo htmlspecialchars($provider['full_name']); ?></div>
+                                                            <small class="text-muted">Applied: <?php echo date('M j, Y', strtotime($provider['created_at'])); ?></small>
+                                                        </div>
+                                                    </div>
+                                                </td>
+                                                <td>
+                                                    <div><?php echo htmlspecialchars($provider['business_name']); ?></div>
+                                                    <small class="text-muted"><?php echo htmlspecialchars($provider['service_category']); ?></small>
+                                                </td>
+                                                <td>
+                                                    <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#documentModal">
+                                                        <i class="fas fa-file-alt"></i> View
+                                                    </button>
+                                                    <span class="badge bg-success">Complete</span>
+                                                </td>
+                                                <td>
+                                                    <?php if ($provider['is_verified'] === null): ?>
+                                                        <span class="badge badge-pending">Pending</span>
+                                                    <?php elseif ($provider['is_verified'] === true): ?>
+                                                        <span class="badge badge-approved">Approved</span>
+                                                    <?php else: ?>
+                                                        <span class="badge badge-rejected">Rejected</span>
+                                                    <?php endif; ?>
+                                                </td>
+                                                <td>
+                                                    <?php if ($provider['is_verified'] === null): ?>
+                                                        <button class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal<?php echo $provider['provider_id']; ?>">
+                                                            <i class="fas fa-check"></i> Approve
+                                                        </button>
+                                                        <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal<?php echo $provider['provider_id']; ?>">
+                                                            <i class="fas fa-times"></i> Reject
+                                                        </button>
+                                                    <?php else: ?>
+                                                        <button class="btn btn-secondary btn-sm">
+                                                            <i class="fas fa-eye"></i> View Details
+                                                        </button>
+                                                    <?php endif; ?>
+                                                </td>
+                                            </tr>
 
-                                    <!-- Approved Application -->
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <img src="/api/placeholder/48/48" class="rounded-circle me-2" alt="Provider">
-                                                <div>
-                                                    <div class="fw-bold">Maria Santos</div>
-                                                    <small class="text-muted">Applied: Feb 19, 2025</small>
+                                            <!-- Approve Modal for Each Provider -->
+                                            <div class="modal fade" id="approveModal<?php echo $provider['provider_id']; ?>" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Approve Provider</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <form method="POST" action="admin_provider_approvals.php">
+                                                            <div class="modal-body">
+                                                                <p>Are you sure you want to approve this service provider?</p>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Additional Notes (Optional)</label>
+                                                                    <textarea class="form-control" name="notes" rows="3"></textarea>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <input type="hidden" name="provider_id" value="<?php echo $provider['provider_id']; ?>">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                <button type="submit" name="approve_provider" class="btn btn-success">Confirm Approval</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
                                                 </div>
                                             </div>
-                                        </td>
-                                        <td>
-                                            <div>PlumbRight Solutions</div>
-                                            <small class="text-muted">Plumbing</small>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#documentModal">
-                                                <i class="fas fa-file-alt"></i> View
-                                            </button>
-                                            <span class="badge bg-success">Complete</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-approved">Approved</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-secondary btn-sm">
-                                                <i class="fas fa-eye"></i> View Details
-                                            </button>
-                                        </td>
-                                    </tr>
+
+                                            <!-- Reject Modal for Each Provider -->
+                                            <div class="modal fade" id="rejectModal<?php echo $provider['provider_id']; ?>" tabindex="-1">
+                                                <div class="modal-dialog">
+                                                    <div class="modal-content">
+                                                        <div class="modal-header">
+                                                            <h5 class="modal-title">Reject Provider</h5>
+                                                            <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+                                                        </div>
+                                                        <form method="POST" action="admin_provider_approvals.php">
+                                                            <div class="modal-body">
+                                                                <p>Are you sure you want to reject this service provider?</p>
+                                                                <div class="mb-3">
+                                                                    <label class="form-label">Reason for Rejection (Optional)</label>
+                                                                    <textarea class="form-control" name="reason" rows="3"></textarea>
+                                                                </div>
+                                                            </div>
+                                                            <div class="modal-footer">
+                                                                <input type="hidden" name="provider_id" value="<?php echo $provider['provider_id']; ?>">
+                                                                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+                                                                <button type="submit" name="reject_provider" class="btn btn-danger">Confirm Rejection</button>
+                                                            </div>
+                                                        </form>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
@@ -332,52 +405,6 @@
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Approve Modal -->
-    <div class="modal fade" id="approveModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Approve Provider</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to approve this service provider?</p>
-                    <div class="mb-3">
-                        <label class="form-label">Additional Notes (Optional)</label>
-                        <textarea class="form-control" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success">Confirm Approval</button>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Reject Modal -->
-    <div class="modal fade" id="rejectModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Reject Provider</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to reject this service provider?</p>
-                    <div class="mb-3">
-                        <label class="form-label">Reason for Rejection (Optional)</label>
-                        <textarea class="form-control" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-danger">Confirm Rejection</button>
                 </div>
             </div>
         </div>

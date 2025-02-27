@@ -1,9 +1,48 @@
+<?php
+session_start();
+
+// Redirect if not logged in or not an admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: login.php");
+    exit();
+}
+
+// Include the database configuration
+require_once '../database/config.php';
+
+// Fetch key metrics
+$query = "
+    SELECT 
+        (SELECT COUNT(*) FROM users) AS total_users,
+        (SELECT COUNT(*) FROM providers) AS total_providers,
+        (SELECT COUNT(*) FROM bookings) AS total_bookings,
+        (SELECT COUNT(*) FROM reviews) AS total_reviews
+";
+$stmt = $pdo->prepare($query);
+$stmt->execute();
+$metrics = $stmt->fetch(PDO::FETCH_ASSOC);
+
+// Fetch recent bookings
+$query = "
+    SELECT b.booking_id, b.start_time, b.end_time, b.status,
+           u.full_name AS customer_name, p.business_name AS provider_name
+    FROM bookings b
+    JOIN users u ON b.customer_id = u.user_id
+    JOIN providers p ON b.provider_id = p.provider_id
+    ORDER BY b.start_time DESC
+    LIMIT 5
+";
+$stmt = $pdo->prepare($query);
+$stmt->execute();
+$recent_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>ServiceHub Admin - Provider Approvals</title>
+    <title>Admin Dashboard - ServiceHub</title>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.2/css/all.min.css" rel="stylesheet">
     <style>
@@ -28,19 +67,11 @@
             text-align: center;
             margin-right: 10px;
         }
-        .badge-pending {
-            background-color: #ffc107;
+        .card {
+            transition: transform 0.2s;
         }
-        .badge-approved {
-            background-color: #198754;
-        }
-        .badge-rejected {
-            background-color: #dc3545;
-        }
-        .document-preview {
-            max-height: 200px;
-            object-fit: cover;
-            cursor: pointer;
+        .card:hover {
+            transform: translateY(-5px);
         }
         .status-indicator {
             width: 10px;
@@ -67,12 +98,12 @@
                 </div>
                 <ul class="nav flex-column">
                     <li class="nav-item">
-                        <a class="nav-link" href="#">
+                        <a class="nav-link active" href="admin_dashboard.php">
                             <i class="fas fa-tachometer-alt"></i> Dashboard
                         </a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link active" href="admin_provider_approvals.php">
+                        <a class="nav-link" href="admin_provider_approvals.php">
                             <i class="fas fa-user-check"></i> Provider Approvals
                         </a>
                     </li>
@@ -104,11 +135,10 @@
                 <!-- Header -->
                 <div class="d-flex justify-content-between align-items-center mb-4">
                     <div>
-                        <h3>Provider Approvals</h3>
+                        <h3>Dashboard</h3>
                         <nav aria-label="breadcrumb">
                             <ol class="breadcrumb">
-                                <li class="breadcrumb-item"><a href="#">Dashboard</a></li>
-                                <li class="breadcrumb-item active">Provider Approvals</li>
+                                <li class="breadcrumb-item active">Dashboard</li>
                             </ol>
                         </nav>
                     </div>
@@ -117,251 +147,173 @@
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <button class="btn btn-outline-danger btn-sm">
+                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
-                        </button>
+                        </a>
                     </div>
                 </div>
 
-                <!-- Stats Cards -->
+                <!-- Key Metrics -->
                 <div class="row g-3 mb-4">
-                    <div class="col-md-4">
-                        <div class="card bg-warning text-white">
+                    <div class="col-md-3">
+                        <div class="card text-center h-100">
                             <div class="card-body">
-                                <h5 class="card-title">Pending Approvals</h5>
-                                <h2 class="mb-0">12</h2>
+                                <h5 class="card-title">Total Users</h5>
+                                <h2 class="mb-0"><?php echo $metrics['total_users']; ?></h2>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card bg-success text-white">
+                    <div class="col-md-3">
+                        <div class="card text-center h-100">
                             <div class="card-body">
-                                <h5 class="card-title">Approved Today</h5>
-                                <h2 class="mb-0">8</h2>
+                                <h5 class="card-title">Total Providers</h5>
+                                <h2 class="mb-0"><?php echo $metrics['total_providers']; ?></h2>
                             </div>
                         </div>
                     </div>
-                    <div class="col-md-4">
-                        <div class="card bg-danger text-white">
+                    <div class="col-md-3">
+                        <div class="card text-center h-100">
                             <div class="card-body">
-                                <h5 class="card-title">Rejected Today</h5>
-                                <h2 class="mb-0">3</h2>
+                                <h5 class="card-title">Total Bookings</h5>
+                                <h2 class="mb-0"><?php echo $metrics['total_bookings']; ?></h2>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="card text-center h-100">
+                            <div class="card-body">
+                                <h5 class="card-title">Total Reviews</h5>
+                                <h2 class="mb-0"><?php echo $metrics['total_reviews']; ?></h2>
                             </div>
                         </div>
                     </div>
                 </div>
 
-                <!-- Filter Controls -->
+                <!-- Recent Bookings -->
                 <div class="card mb-4">
-                    <div class="card-body">
-                        <div class="row g-3">
-                            <div class="col-md-4">
-                                <select class="form-select">
-                                    <option selected>All Statuses</option>
-                                    <option>Pending</option>
-                                    <option>Approved</option>
-                                    <option>Rejected</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <select class="form-select">
-                                    <option selected>All Services</option>
-                                    <option>Home Cleaning</option>
-                                    <option>Plumbing</option>
-                                    <option>Electrical</option>
-                                </select>
-                            </div>
-                            <div class="col-md-4">
-                                <div class="input-group">
-                                    <input type="text" class="form-control" placeholder="Search providers...">
-                                    <button class="btn btn-primary">
-                                        <i class="fas fa-search"></i>
-                                    </button>
-                                </div>
-                            </div>
-                        </div>
+                    <div class="card-header">
+                        <h5 class="card-title mb-0">Recent Bookings</h5>
                     </div>
-                </div>
-
-                <!-- Provider Applications Table -->
-                <div class="card">
                     <div class="card-body">
                         <div class="table-responsive">
                             <table class="table table-hover">
                                 <thead>
                                     <tr>
-                                        <th>Provider Details</th>
-                                        <th>Business Info</th>
-                                        <th>Documents</th>
+                                        <th>Booking ID</th>
+                                        <th>Customer</th>
+                                        <th>Provider</th>
+                                        <th>Start Time</th>
+                                        <th>End Time</th>
                                         <th>Status</th>
-                                        <th>Actions</th>
                                     </tr>
                                 </thead>
                                 <tbody>
-                                    <!-- Pending Application -->
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <img src="/api/placeholder/48/48" class="rounded-circle me-2" alt="Provider">
-                                                <div>
-                                                    <div class="fw-bold">Juan Dela Cruz</div>
-                                                    <small class="text-muted">Applied: Feb 20, 2025</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div>Clean Pro Services</div>
-                                            <small class="text-muted">Home Cleaning</small>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#documentModal">
-                                                <i class="fas fa-file-alt"></i> View
-                                            </button>
-                                            <span class="badge bg-success">Complete</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-pending">Pending</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-success btn-sm me-1" data-bs-toggle="modal" data-bs-target="#approveModal">
-                                                <i class="fas fa-check"></i> Approve
-                                            </button>
-                                            <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#rejectModal">
-                                                <i class="fas fa-times"></i> Reject
-                                            </button>
-                                        </td>
-                                    </tr>
-
-                                    <!-- Approved Application -->
-                                    <tr>
-                                        <td>
-                                            <div class="d-flex align-items-center">
-                                                <img src="/api/placeholder/48/48" class="rounded-circle me-2" alt="Provider">
-                                                <div>
-                                                    <div class="fw-bold">Maria Santos</div>
-                                                    <small class="text-muted">Applied: Feb 19, 2025</small>
-                                                </div>
-                                            </div>
-                                        </td>
-                                        <td>
-                                            <div>PlumbRight Solutions</div>
-                                            <small class="text-muted">Plumbing</small>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-sm btn-outline-primary me-1" data-bs-toggle="modal" data-bs-target="#documentModal">
-                                                <i class="fas fa-file-alt"></i> View
-                                            </button>
-                                            <span class="badge bg-success">Complete</span>
-                                        </td>
-                                        <td>
-                                            <span class="badge badge-approved">Approved</span>
-                                        </td>
-                                        <td>
-                                            <button class="btn btn-secondary btn-sm">
-                                                <i class="fas fa-eye"></i> View Details
-                                            </button>
-                                        </td>
-                                    </tr>
+                                    <?php if (empty($recent_bookings)): ?>
+                                        <tr>
+                                            <td colspan="6" class="text-center">No recent bookings found.</td>
+                                        </tr>
+                                    <?php else: ?>
+                                        <?php foreach ($recent_bookings as $booking): ?>
+                                            <tr>
+                                                <td><?php echo htmlspecialchars($booking['booking_id']); ?></td>
+                                                <td><?php echo htmlspecialchars($booking['customer_name']); ?></td>
+                                                <td><?php echo htmlspecialchars($booking['provider_name']); ?></td>
+                                                <td><?php echo date('M j, Y h:i A', strtotime($booking['start_time'])); ?></td>
+                                                <td><?php echo date('M j, Y h:i A', strtotime($booking['end_time'])); ?></td>
+                                                <td>
+                                                    <span class="badge 
+                                                        <?php echo $booking['status'] === 'pending' ? 'bg-warning' : 
+                                                              ($booking['status'] === 'confirmed' ? 'bg-success' : 
+                                                              ($booking['status'] === 'completed' ? 'bg-primary' : 'bg-danger')); ?>">
+                                                        <?php echo htmlspecialchars($booking['status']); ?>
+                                                    </span>
+                                                </td>
+                                            </tr>
+                                        <?php endforeach; ?>
+                                    <?php endif; ?>
                                 </tbody>
                             </table>
                         </div>
+                    </div>
+                </div>
 
-                        <!-- Pagination -->
-                        <nav class="mt-3">
-                            <ul class="pagination justify-content-end">
-                                <li class="page-item disabled">
-                                    <a class="page-link" href="#" tabindex="-1">Previous</a>
-                                </li>
-                                <li class="page-item active"><a class="page-link" href="#">1</a></li>
-                                <li class="page-item"><a class="page-link" href="#">2</a></li>
-                                <li class="page-item"><a class="page-link" href="#">3</a></li>
-                                <li class="page-item">
-                                    <a class="page-link" href="#">Next</a>
-                                </li>
-                            </ul>
-                        </nav>
+                <!-- Charts Section -->
+                <div class="row g-3 mb-4">
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Bookings Overview</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="bookingsChart"></canvas>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="card">
+                            <div class="card-header">
+                                <h5 class="card-title mb-0">Revenue Overview</h5>
+                            </div>
+                            <div class="card-body">
+                                <canvas id="revenueChart"></canvas>
+                            </div>
+                        </div>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Document Preview Modal -->
-    <div class="modal fade" id="documentModal" tabindex="-1">
-        <div class="modal-dialog modal-lg">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Provider Documents</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <div class="row g-3">
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6>DTI Registration</h6>
-                                    <img src="/api/placeholder/400/200" class="img-fluid document-preview" alt="DTI Registration">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6>Mayor's Permit</h6>
-                                    <img src="/api/placeholder/400/200" class="img-fluid document-preview" alt="Mayor's Permit">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6>BIR Certificate</h6>
-                                    <img src="/api/placeholder/400/200" class="img-fluid document-preview" alt="BIR Certificate">
-                                </div>
-                            </div>
-                        </div>
-                        <div class="col-md-6">
-                            <div class="card">
-                                <div class="card-body">
-                                    <h6>Valid ID</h6>
-                                    <img src="/api/placeholder/400/200" class="img-fluid document-preview" alt="Valid ID">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Close</button>
-                </div>
-            </div>
-        </div>
-    </div>
+    <!-- Include Chart.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.7.0/chart.min.js"></script>
+    <script>
+        // Bookings Chart
+        const bookingsCtx = document.getElementById('bookingsChart').getContext('2d');
+        const bookingsChart = new Chart(bookingsCtx, {
+            type: 'line',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                datasets: [{
+                    label: 'Bookings',
+                    data: [12, 19, 3, 5, 2, 3, 10],
+                    backgroundColor: 'rgba(13, 110, 253, 0.2)',
+                    borderColor: 'rgba(13, 110, 253, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
 
-    <!-- Approve Modal -->
-    <div class="modal fade" id="approveModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-header">
-                    <h5 class="modal-title">Approve Provider</h5>
-                    <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
-                </div>
-                <div class="modal-body">
-                    <p>Are you sure you want to approve this service provider?</p>
-                    <div class="mb-3">
-                        <label class="form-label">Additional Notes (Optional)</label>
-                        <textarea class="form-control" rows="3"></textarea>
-                    </div>
-                </div>
-                <div class="modal-footer">
-                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
-                    <button type="button" class="btn btn-success">Confirm Approval</button>
-                </div>
-            </div>
-        </div>
-    </div>
+        // Revenue Chart
+        const revenueCtx = document.getElementById('revenueChart').getContext('2d');
+        const revenueChart = new Chart(revenueCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                datasets: [{
+                    label: 'Revenue',
+                    data: [1200, 1900, 300, 500, 200, 300, 1000],
+                    backgroundColor: 'rgba(25, 135, 84, 0.2)',
+                    borderColor: 'rgba(25, 135, 84, 1)',
+                    borderWidth: 1
+                }]
+            },
+            options: {
+                scales: {
+                    y: {
+                        beginAtZero: true
+                    }
+                }
+            }
+        });
+    </script>
 
-    <!-- Reject Modal -->
-    <div class="modal fade" id="rejectModal" tabindex="-1">
-        <div class="modal-dialog">
-            <div class="modal-content">
-                <div class="modal-
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>
