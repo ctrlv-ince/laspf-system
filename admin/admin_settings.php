@@ -1,3 +1,16 @@
+<?php
+session_start();
+
+// Redirect if not logged in or not an admin
+if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
+    header("Location: ../login.php");
+    exit();
+}
+
+// Include the database configuration
+require_once '../database/config.php';
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>

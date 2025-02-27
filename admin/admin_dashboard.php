@@ -3,7 +3,7 @@ session_start();
 
 // Redirect if not logged in or not an admin
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
-    header("Location: login.php");
+    header("Location: ../login.php");
     exit();
 }
 
@@ -35,6 +35,33 @@ $query = "
 $stmt = $pdo->prepare($query);
 $stmt->execute();
 $recent_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Fetch data for charts
+$query = "
+    SELECT 
+        DATE_FORMAT(b.start_time, '%Y-%m') AS month,
+        COUNT(*) AS bookings_count,
+        SUM(p.amount) AS total_revenue
+    FROM bookings b
+    JOIN payments p ON b.booking_id = p.booking_id
+    GROUP BY DATE_FORMAT(b.start_time, '%Y-%m')
+    ORDER BY month ASC
+    LIMIT 6
+";
+$stmt = $pdo->prepare($query);
+$stmt->execute();
+$chart_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+// Prepare data for Chart.js
+$labels = [];
+$bookings_data = [];
+$revenue_data = [];
+
+foreach ($chart_data as $row) {
+    $labels[] = date('M Y', strtotime($row['month']));
+    $bookings_data[] = $row['bookings_count'];
+    $revenue_data[] = $row['total_revenue'];
+}
 ?>
 
 <!DOCTYPE html>
@@ -272,10 +299,10 @@ $recent_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         const bookingsChart = new Chart(bookingsCtx, {
             type: 'line',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                labels: <?php echo json_encode($labels); ?>,
                 datasets: [{
                     label: 'Bookings',
-                    data: [12, 19, 3, 5, 2, 3, 10],
+                    data: <?php echo json_encode($bookings_data); ?>,
                     backgroundColor: 'rgba(13, 110, 253, 0.2)',
                     borderColor: 'rgba(13, 110, 253, 1)',
                     borderWidth: 1
@@ -295,10 +322,10 @@ $recent_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
         const revenueChart = new Chart(revenueCtx, {
             type: 'bar',
             data: {
-                labels: ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul'],
+                labels: <?php echo json_encode($labels); ?>,
                 datasets: [{
                     label: 'Revenue',
-                    data: [1200, 1900, 300, 500, 200, 300, 1000],
+                    data: <?php echo json_encode($revenue_data); ?>,
                     backgroundColor: 'rgba(25, 135, 84, 0.2)',
                     borderColor: 'rgba(25, 135, 84, 1)',
                     borderWidth: 1
