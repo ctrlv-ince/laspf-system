@@ -1,32 +1,50 @@
 <?php
 session_start();
 
+// Include the database configuration
+require_once '../database/config.php';
+
 // Redirect if not logged in or not a provider
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'provider') {
     header("Location: ../login.php");
     exit();
 }
 
-// Include the database configuration
-require_once '../database/config.php';
+// Fetch provider verification status
+$user_id = $_SESSION['user_id'];
+$query = "SELECT provider_id, is_verified FROM providers WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$stmt->bind_result($provider_id, $is_verified);
+$stmt->fetch();
+$stmt->close();
+
+// Redirect if provider is not approved
+if (!$is_verified) {
+    echo "<script>
+            alert('Your account is pending approval by the admin. Please wait for verification.');
+            window.location.href = '../login.php';
+          </script>";
+    exit();
+}
 
 // Fetch provider details
-$provider_id = $_SESSION['user_id'];
-$query = "SELECT * FROM providers WHERE user_id = ?";
+$query = "SELECT * FROM providers WHERE provider_id = ?";
 $stmt = $conn->prepare($query);
 $stmt->bind_param("i", $provider_id);
 $stmt->execute();
 $result = $stmt->get_result();
 $provider = $result->fetch_assoc();
 
-// Fetch recent bookings
+// Fetch recent bookings (Fixed to correctly use provider_id)
 $query = "
     SELECT b.booking_id, b.start_time, b.end_time, b.status, 
            s.service_name, u.full_name AS customer_name
     FROM bookings b
     JOIN services s ON b.service_id = s.service_id
     JOIN users u ON b.customer_id = u.user_id
-    WHERE b.provider_id = ?
+    WHERE s.provider_id = ?
     ORDER BY b.start_time DESC
     LIMIT 5
 ";
@@ -62,6 +80,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 $total_reviews = $result->fetch_assoc()['total_reviews'] ?? 0;
 ?>
+
 
 
 <!DOCTYPE html>
@@ -175,6 +194,26 @@ $total_reviews = $result->fetch_assoc()['total_reviews'] ?? 0;
                                                       ($booking['status'] === 'completed' ? 'bg-primary' : 'bg-danger')); ?>">
                                                 <?php echo htmlspecialchars($booking['status']); ?>
                                             </span>
+                                        <!-- Inside the Recent Bookings table -->
+<td>
+    <?php if ($booking['status'] === 'pending'): ?>
+        <form action="approve_booking.php" method="POST" style="display:inline;">
+            <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+            <button type="submit" name="action" value="confirmed" class="btn btn-success btn-sm">Approve</button>
+        </form>
+        <form action="approve_booking.php" method="POST" style="display:inline;">
+            <input type="hidden" name="booking_id" value="<?php echo $booking['booking_id']; ?>">
+            <button type="submit" name="action" value="cancelled" class="btn btn-danger btn-sm">Reject</button>
+        </form>
+    <?php else: ?>
+        <span class="badge 
+            <?php echo $booking['status'] === 'pending' ? 'bg-warning' : 
+                  ($booking['status'] === 'confirmed' ? 'bg-success' : 
+                  ($booking['status'] === 'completed' ? 'bg-primary' : 'bg-danger')); ?>">
+            <?php echo htmlspecialchars($booking['status']); ?>
+        </span>
+    <?php endif; ?>
+</td>
                                         </td>
                                     </tr>
                                 <?php endforeach; ?>
@@ -214,6 +253,16 @@ $total_reviews = $result->fetch_assoc()['total_reviews'] ?? 0;
                     </div>
                 </div>
             </div>
+            <!-- Inside the Quick Actions section -->
+<div class="col-md-4">
+    <div class="card text-center h-100">
+        <div class="card-body">
+            <h5 class="card-title">Confirm Payments</h5>
+            <p class="card-text">Confirm cash payments from customers.</p>
+            <a href="confirm_payment.php" class="btn btn-primary">Confirm Payments</a>
+        </div>
+    </div>
+</div>
         </div>
     </div>
 

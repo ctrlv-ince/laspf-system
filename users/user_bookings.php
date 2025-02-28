@@ -65,42 +65,54 @@ $services = $result->fetch_all(MYSQLI_ASSOC);
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>GoSeekr - Find and Book Services</title>
-    <link rel="stylesheet" href="../css/styles.css"> <!-- Include your CSS file -->
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
 </head>
 <body>
-    <div class="container">
-        <h1>Find and Book Services</h1>
+    <div class="container py-5">
+        <h1 class="text-center mb-4">Find and Book Services</h1>
 
         <!-- Search and Filter Form -->
-        <form method="GET" action="user_bookings.php">
-            <div class="search-filter">
-                <input type="text" name="search" placeholder="Search by service or provider" value="<?php echo htmlspecialchars($search); ?>">
-                <select name="filter_category">
-                    <option value="">All Categories</option>
-                    <option value="plumbing" <?php echo $filter_category === 'plumbing' ? 'selected' : ''; ?>>Plumbing</option>
-                    <option value="cleaning" <?php echo $filter_category === 'cleaning' ? 'selected' : ''; ?>>Cleaning</option>
-                    <option value="electrician" <?php echo $filter_category === 'electrician' ? 'selected' : ''; ?>>Electrician</option>
-                    <option value="carpentry" <?php echo $filter_category === 'carpentry' ? 'selected' : ''; ?>>Carpentry</option>
-                    <option value="other" <?php echo $filter_category === 'other' ? 'selected' : ''; ?>>Other</option>
-                </select>
-                <button type="submit">Apply</button>
+        <form method="GET" action="user_bookings.php" class="mb-4">
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <input type="text" name="search" class="form-control" placeholder="Search by service or provider" value="<?php echo htmlspecialchars($search); ?>">
+                </div>
+                <div class="col-md-4">
+                    <select name="filter_category" class="form-select">
+                        <option value="">All Categories</option>
+                        <option value="plumbing" <?php echo $filter_category === 'plumbing' ? 'selected' : ''; ?>>Plumbing</option>
+                        <option value="cleaning" <?php echo $filter_category === 'cleaning' ? 'selected' : ''; ?>>Cleaning</option>
+                        <option value="electrician" <?php echo $filter_category === 'electrician' ? 'selected' : ''; ?>>Electrician</option>
+                        <option value="carpentry" <?php echo $filter_category === 'carpentry' ? 'selected' : ''; ?>>Carpentry</option>
+                        <option value="other" <?php echo $filter_category === 'other' ? 'selected' : ''; ?>>Other</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <button type="submit" class="btn btn-primary w-100">Apply</button>
+                </div>
             </div>
         </form>
 
         <!-- Services List -->
-        <div class="services-list">
+        <div class="row">
             <?php if (empty($services)): ?>
-                <p>No services found.</p>
+                <p class="text-center">No services found.</p>
             <?php else: ?>
                 <?php foreach ($services as $service): ?>
-                    <div class="service-card">
-                        <h3><?php echo htmlspecialchars($service['service_name']); ?></h3>
-                        <p><strong>Provider:</strong> <?php echo htmlspecialchars($service['business_name']); ?></p>
-                        <p><strong>Category:</strong> <?php echo htmlspecialchars($service['service_category']); ?></p>
-                        <p><strong>Price:</strong> ₱<?php echo number_format($service['price'], 2); ?></p>
-                        <p><strong>Duration:</strong> <?php echo $service['duration_minutes']; ?> minutes</p>
-                        <p><?php echo htmlspecialchars($service['service_description']); ?></p>
-                        <a href="book_service.php?service_id=<?php echo $service['service_id']; ?>" class="btn-book">Book Now</a>
+                    <div class="col-md-4 mb-4">
+                        <div class="card h-100">
+                            <div class="card-body">
+                                <h5 class="card-title"><?php echo htmlspecialchars($service['service_name']); ?></h5>
+                                <p><strong>Provider:</strong> <?php echo htmlspecialchars($service['business_name']); ?></p>
+                                <p><strong>Category:</strong> <?php echo htmlspecialchars($service['service_category']); ?></p>
+                                <p><strong>Price:</strong> ₱<?php echo number_format($service['price'], 2); ?></p>
+                                <p><strong>Duration:</strong> <?php echo $service['duration_minutes']; ?> minutes</p>
+                                <p><?php echo htmlspecialchars($service['service_description']); ?></p>
+                                <a href="book_service.php?service_id=<?php echo $service['service_id']; ?>" class="btn btn-primary w-100">Book Now</a>
+                            </div>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>

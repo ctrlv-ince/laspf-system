@@ -23,6 +23,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $_SESSION['user_id'] = $user_id;
         $_SESSION['role'] = $role;
 
+        // Fetch provider_id if the user is a provider
+        if ($role === 'provider') {
+            $stmt_provider = $conn->prepare("SELECT provider_id FROM providers WHERE user_id = ?");
+            $stmt_provider->bind_param("i", $user_id);
+            $stmt_provider->execute();
+            $stmt_provider->bind_result($provider_id);
+            $stmt_provider->fetch();
+            $stmt_provider->close();
+
+            // Store provider_id in the session
+            $_SESSION['provider_id'] = $provider_id;
+        }
+
         // Redirect based on role
         switch ($role) {
             case 'admin':
@@ -32,7 +45,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 header("Location: ./providers/provider_dashboard.php");
                 break;
             case 'user':
-                header("Location: ./users/user_dashboard.php");
+                header("Location: ./users/user_index.php");
                 break;
             default:
                 echo "<script>alert('Invalid role');</script>";

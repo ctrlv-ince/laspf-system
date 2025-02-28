@@ -1,17 +1,31 @@
 <?php
 session_start();
+require_once '../database/config.php';
 
-// Check if the user is logged in and has the role 'provider'
+// Redirect if not logged in or not a provider
 if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'provider') {
-    header('Location: ../login.php');
+    header("Location: ../login.php");
     exit();
 }
 
-// Include the database configuration
-require_once '../database/config.php';
+// Fetch provider verification status and get correct provider_id
+$user_id = $_SESSION['user_id'];
+$query = "SELECT provider_id, is_verified FROM providers WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $user_id);
+$stmt->execute();
+$stmt->bind_result($provider_id, $is_verified);
+$stmt->fetch();
+$stmt->close();
 
-// Fetch the provider's ID from the session
-$provider_id = $_SESSION['user_id'];
+// Redirect if provider is not approved
+if (!$is_verified) {
+    echo "<script>
+            alert('Your account is pending approval by the admin. Please wait for verification.');
+            window.location.href = '../login.php';
+          </script>";
+    exit();
+}
 
 // Handle Add Service Form Submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_service'])) {
@@ -20,51 +34,15 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_service'])) {
     $price = floatval($_POST['price']);
     $duration_minutes = intval($_POST['duration_minutes']);
 
-    // Insert the new service into the database
-    $query = "INSERT INTO services (provider_id, service_name, service_description, price, duration_minutes) 
-              VALUES (?, ?, ?, ?, ?)";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("issdi", $provider_id, $service_name, $service_description, $price, $duration_minutes);
-    $stmt->execute();
+    if ($provider_id) { // Ensure provider_id is valid
+        $query = "INSERT INTO services (provider_id, service_name, service_description, price, duration_minutes) 
+                  VALUES (?, ?, ?, ?, ?)";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("issdi", $provider_id, $service_name, $service_description, $price, $duration_minutes);
+        $stmt->execute();
+        $stmt->close();
+    }
 
-    // Redirect to refresh the page and show the updated list
-    header('Location: provider_services.php');
-    exit();
-}
-
-// Handle Edit Service Form Submission
-if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_service'])) {
-    $service_id = intval($_POST['service_id']);
-    $service_name = trim($_POST['edit_service_name']);
-    $service_description = trim($_POST['edit_service_description']);
-    $price = floatval($_POST['edit_price']);
-    $duration_minutes = intval($_POST['edit_duration_minutes']);
-
-    // Update the service in the database
-    $query = "UPDATE services 
-              SET service_name = ?, service_description = ?, 
-                  price = ?, duration_minutes = ? 
-              WHERE service_id = ? AND provider_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ssdiii", $service_name, $service_description, $price, $duration_minutes, $service_id, $provider_id);
-    $stmt->execute();
-
-    // Redirect to refresh the page and show the updated list
-    header('Location: provider_services.php');
-    exit();
-}
-
-// Handle Delete Service Request
-if (isset($_GET['delete_service'])) {
-    $service_id = intval($_GET['delete_service']);
-
-    // Delete the service from the database
-    $query = "DELETE FROM services WHERE service_id = ? AND provider_id = ?";
-    $stmt = $conn->prepare($query);
-    $stmt->bind_param("ii", $service_id, $provider_id);
-    $stmt->execute();
-
-    // Redirect to refresh the page and show the updated list
     header('Location: provider_services.php');
     exit();
 }
@@ -77,6 +55,7 @@ $stmt->execute();
 $result = $stmt->get_result();
 $services = $result->fetch_all(MYSQLI_ASSOC);
 ?>
+
 
 
 <!DOCTYPE html>
