@@ -17,18 +17,21 @@ $query = "
     FROM payments p
     JOIN bookings b ON p.booking_id = b.booking_id
     JOIN services s ON b.service_id = s.service_id
-    WHERE b.customer_id = :user_id
+    WHERE b.customer_id = ?
     ORDER BY p.created_at DESC
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute([':user_id' => $_SESSION['user_id']]);
-$payments = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $_SESSION['user_id']);
+$stmt->execute();
+$result = $stmt->get_result();
+$payments = $result->fetch_all(MYSQLI_ASSOC);
 
 // Handle review submission
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
     $booking_id = intval($_POST['booking_id']);
     $rating = intval($_POST['rating']);
     $comment = trim($_POST['comment']);
+    $provider_id = intval($_POST['provider_id']);
 
     // Validate rating (1 to 5)
     if ($rating < 1 || $rating > 5) {
@@ -40,16 +43,11 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
     // Insert the review into the database
     $query = "
         INSERT INTO reviews (booking_id, customer_id, provider_id, rating, comment, created_at)
-        VALUES (:booking_id, :customer_id, :provider_id, :rating, :comment, NOW())
+        VALUES (?, ?, ?, ?, ?, NOW())
     ";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        ':booking_id' => $booking_id,
-        ':customer_id' => $_SESSION['user_id'],
-        ':provider_id' => $_POST['provider_id'],
-        ':rating' => $rating,
-        ':comment' => $comment
-    ]);
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("iiiis", $booking_id, $_SESSION['user_id'], $provider_id, $rating, $comment);
+    $stmt->execute();
 
     // Redirect with success message
     $_SESSION['success'] = "Review submitted successfully!";
@@ -57,6 +55,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
     exit();
 }
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -105,7 +104,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['submit_review'])) {
                         <a class="nav-link" href="user_dashboard.php">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="logout.php">Logout</a>
+                        <a class="nav-link" href="../logout.php">Logout</a>
                     </li>
                 </ul>
             </div>

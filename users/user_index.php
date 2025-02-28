@@ -12,15 +12,17 @@ $query = "
     JOIN providers p ON s.provider_id = p.provider_id
     ORDER BY s.service_name ASC
 ";
-$stmt = $pdo->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->execute();
-$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$result = $stmt->get_result();
+$services = $result->fetch_all(MYSQLI_ASSOC);
 
 // Fetch unique service categories for filtering
 $query = "SELECT DISTINCT service_category FROM providers";
-$stmt = $pdo->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->execute();
-$categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
+$result = $stmt->get_result();
+$categories = $result->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -61,7 +63,7 @@ $categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
                         <a class="nav-link" href="user_bookings.php">Bookings</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="logout.php">Logout</a>
+                        <a class="nav-link" href="../logout.php">Logout</a>
                     </li>
                 </ul>
             </div>
@@ -95,8 +97,8 @@ $categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
                         All
                     </button>
                     <?php foreach ($categories as $category): ?>
-                        <button type="button" class="btn btn-outline-secondary category-filter" data-category="<?php echo htmlspecialchars($category); ?>">
-                            <?php echo htmlspecialchars($category); ?>
+                        <button type="button" class="btn btn-outline-secondary category-filter" data-category="<?php echo htmlspecialchars($category['service_category']); ?>">
+                            <?php echo htmlspecialchars($category['service_category']); ?>
                         </button>
                     <?php endforeach; ?>
                 </div>
@@ -121,7 +123,7 @@ $categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
                                 <p class="card-text"><?php echo htmlspecialchars($service['service_description']); ?></p>
                                 <ul class="list-group list-group-flush">
                                     <li class="list-group-item">
-                                        <strong>Price:</strong> $<?php echo number_format($service['price'], 2); ?>
+                                        <strong>Price:</strong> ₱<?php echo number_format($service['price'], 2); ?>
                                     </li>
                                     <li class="list-group-item">
                                         <strong>Duration:</strong> <?php echo $service['duration_minutes']; ?> mins
@@ -172,4 +174,4 @@ $categories = $stmt->fetchAll(PDO::FETCH_COLUMN);
         });
     </script>
 </body>
-</html> 
+</html>

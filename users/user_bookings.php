@@ -15,22 +15,27 @@ $search = '';
 $filter_category = '';
 $where_clause = "WHERE 1"; // Default condition
 $params = [];
+$param_types = '';
+$param_values = [];
 
 // Handle search and filter form submission
 if ($_SERVER['REQUEST_METHOD'] === 'GET') {
     if (isset($_GET['search'])) {
         $search = trim($_GET['search']);
         if (!empty($search)) {
-            $where_clause .= " AND (s.service_name LIKE :search OR p.business_name LIKE :search)";
-            $params[':search'] = "%$search%";
+            $where_clause .= " AND (s.service_name LIKE ? OR p.business_name LIKE ?)";
+            $param_types .= 'ss';
+            $param_values[] = "%$search%";
+            $param_values[] = "%$search%";
         }
     }
 
     if (isset($_GET['filter_category'])) {
         $filter_category = trim($_GET['filter_category']);
         if (!empty($filter_category)) {
-            $where_clause .= " AND p.service_category = :category";
-            $params[':category'] = $filter_category;
+            $where_clause .= " AND p.service_category = ?";
+            $param_types .= 's';
+            $param_values[] = $filter_category;
         }
     }
 }
@@ -45,9 +50,13 @@ $query = "
     ORDER BY s.service_name ASC
 ";
 
-$stmt = $pdo->prepare($query);
-$stmt->execute($params);
-$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $conn->prepare($query);
+if (!empty($param_types)) {
+    $stmt->bind_param($param_types, ...$param_values);
+}
+$stmt->execute();
+$result = $stmt->get_result();
+$services = $result->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>

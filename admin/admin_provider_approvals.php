@@ -17,21 +17,19 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         $notes = trim($_POST['notes']);
 
         // Update provider status to 'approved'
-        $query = "UPDATE providers SET is_verified = TRUE WHERE provider_id = :provider_id";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([':provider_id' => $provider_id]);
-
-        // Optionally, save notes to a separate table or log
+        $query = "UPDATE providers SET is_verified = TRUE WHERE provider_id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $provider_id);
+        $stmt->execute();
     } elseif (isset($_POST['reject_provider'])) {
         $provider_id = intval($_POST['provider_id']);
         $reason = trim($_POST['reason']);
 
         // Update provider status to 'rejected'
-        $query = "UPDATE providers SET is_verified = FALSE WHERE provider_id = :provider_id";
-        $stmt = $pdo->prepare($query);
-        $stmt->execute([':provider_id' => $provider_id]);
-
-        // Optionally, save rejection reason to a separate table or log
+        $query = "UPDATE providers SET is_verified = FALSE WHERE provider_id = ?";
+        $stmt = $conn->prepare($query);
+        $stmt->bind_param("i", $provider_id);
+        $stmt->execute();
     }
 
     // Redirect to refresh the page
@@ -47,9 +45,10 @@ $query = "
     JOIN users u ON p.user_id = u.user_id
     ORDER BY p.created_at DESC
 ";
-$stmt = $pdo->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->execute();
-$providers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$result = $stmt->get_result();
+$providers = $result->fetch_all(MYSQLI_ASSOC);
 
 // Calculate stats
 $pending_count = 0;
@@ -150,7 +149,7 @@ foreach ($providers as $provider) {
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
+                        <a href="../logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>

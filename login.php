@@ -88,12 +88,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             <div class="d-grid">
                 <button type="submit" class="btn btn-primary">Login</button>
             </div>
-
-            <!-- Register Link -->
-            <div class="mt-3 text-center">
-                <p>Don't have an account? <a href="register.php">Register here</a></p>
-            </div>
         </form>
+
+        <!-- Register Links -->
+        <div class="mt-4 text-center">
+            <p>Don't have an account?</p>
+            <div class="d-grid gap-2">
+                <a href="users/user_registration.php" class="btn btn-success">Register as User</a>
+                <a href="providers/provider_registration.php" class="btn btn-outline-primary">Register as Provider</a>
+            </div>
+        </div>
     </div>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/bootstrap/5.3.2/js/bootstrap.bundle.min.js"></script>

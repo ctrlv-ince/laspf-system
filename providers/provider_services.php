@@ -22,15 +22,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['add_service'])) {
 
     // Insert the new service into the database
     $query = "INSERT INTO services (provider_id, service_name, service_description, price, duration_minutes) 
-              VALUES (:provider_id, :service_name, :service_description, :price, :duration_minutes)";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        ':provider_id' => $provider_id,
-        ':service_name' => $service_name,
-        ':service_description' => $service_description,
-        ':price' => $price,
-        ':duration_minutes' => $duration_minutes
-    ]);
+              VALUES (?, ?, ?, ?, ?)";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("issdi", $provider_id, $service_name, $service_description, $price, $duration_minutes);
+    $stmt->execute();
 
     // Redirect to refresh the page and show the updated list
     header('Location: provider_services.php');
@@ -47,18 +42,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['edit_service'])) {
 
     // Update the service in the database
     $query = "UPDATE services 
-              SET service_name = :service_name, service_description = :service_description, 
-                  price = :price, duration_minutes = :duration_minutes 
-              WHERE service_id = :service_id AND provider_id = :provider_id";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        ':service_name' => $service_name,
-        ':service_description' => $service_description,
-        ':price' => $price,
-        ':duration_minutes' => $duration_minutes,
-        ':service_id' => $service_id,
-        ':provider_id' => $provider_id
-    ]);
+              SET service_name = ?, service_description = ?, 
+                  price = ?, duration_minutes = ? 
+              WHERE service_id = ? AND provider_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ssdiii", $service_name, $service_description, $price, $duration_minutes, $service_id, $provider_id);
+    $stmt->execute();
 
     // Redirect to refresh the page and show the updated list
     header('Location: provider_services.php');
@@ -70,12 +59,10 @@ if (isset($_GET['delete_service'])) {
     $service_id = intval($_GET['delete_service']);
 
     // Delete the service from the database
-    $query = "DELETE FROM services WHERE service_id = :service_id AND provider_id = :provider_id";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        ':service_id' => $service_id,
-        ':provider_id' => $provider_id
-    ]);
+    $query = "DELETE FROM services WHERE service_id = ? AND provider_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ii", $service_id, $provider_id);
+    $stmt->execute();
 
     // Redirect to refresh the page and show the updated list
     header('Location: provider_services.php');
@@ -83,11 +70,14 @@ if (isset($_GET['delete_service'])) {
 }
 
 // Fetch all services for the logged-in provider
-$query = "SELECT * FROM services WHERE provider_id = :provider_id";
-$stmt = $pdo->prepare($query);
-$stmt->execute([':provider_id' => $provider_id]);
-$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$query = "SELECT * FROM services WHERE provider_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $provider_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$services = $result->fetch_all(MYSQLI_ASSOC);
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -120,7 +110,7 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
                         <a class="nav-link" href="provider_dashboard.php">Dashboard</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="logout.php">Logout</a>
+                        <a class="nav-link" href="../logout.php">Logout</a>
                     </li>
                 </ul>
             </div>

@@ -26,23 +26,18 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // Update the service in the database
+    // Update the service in the database using MySQLi
     $query = "
         UPDATE services
-        SET service_name = :service_name,
-            service_description = :service_description,
-            price = :price,
-            duration_minutes = :duration_minutes
-        WHERE service_id = :service_id
+        SET service_name = ?, 
+            service_description = ?, 
+            price = ?, 
+            duration_minutes = ? 
+        WHERE service_id = ?
     ";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        ':service_name' => $service_name,
-        ':service_description' => $service_description,
-        ':price' => $price,
-        ':duration_minutes' => $duration_minutes,
-        ':service_id' => $service_id
-    ]);
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("ssdii", $service_name, $service_description, $price, $duration_minutes, $service_id);
+    $stmt->execute();
 
     // Redirect back to the services page with a success message
     $_SESSION['success'] = "Service updated successfully!";
@@ -53,3 +48,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: admin_services.php");
     exit();
 }
+?>

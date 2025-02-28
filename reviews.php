@@ -1,3 +1,32 @@
+<?php
+// Include the database configuration file
+require_once './database/config.php';
+
+// Fetch reviews from the database
+$query = "
+    SELECT 
+        r.rating, 
+        r.comment, 
+        r.created_at, 
+        u.full_name AS customer_name, 
+        p.business_name AS provider_name, 
+        s.service_name 
+    FROM reviews r
+    JOIN users u ON r.customer_id = u.user_id
+    JOIN providers p ON r.provider_id = p.provider_id
+    JOIN services s ON r.booking_id = s.service_id
+    ORDER BY r.created_at DESC
+";
+$result = $conn->query($query);
+
+if (!$result) {
+    die("Error fetching reviews: " . $conn->error);
+}
+
+$reviews = $result->fetch_all(MYSQLI_ASSOC);
+$conn->close();
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -37,7 +66,7 @@
     </style>
 </head>
 <body>
-    <!-- Navbar (same as landing page) -->
+    <!-- Navbar -->
     <nav class="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
         <div class="container">
             <a class="navbar-brand fw-bold text-primary" href="./index.php">GoSeekr</a>
@@ -117,9 +146,10 @@
                                 <i class="fas fa-star"></i>
                                 <i class="fas fa-star-half-alt"></i>
                             </div>
-                            <p class="text-muted mb-0">Based on 2,456 reviews</p>
+                            <p class="text-muted mb-0">Based on <?php echo count($reviews); ?> reviews</p>
                         </div>
                         <div class="col-md-9">
+                            <!-- Rating distribution (you can calculate this dynamically if needed) -->
                             <div class="row align-items-center mb-2">
                                 <div class="col-3">5 stars</div>
                                 <div class="col">
@@ -172,75 +202,47 @@
 
             <!-- Individual Reviews -->
             <div class="row g-4">
-                <div class="col-md-6">
-                    <div class="card review-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <img src="/api/placeholder/64/64" class="review-img me-3" alt="User">
-                                <div>
-                                    <h6 class="mb-0">Sarah Johnson</h6>
-                                    <small class="text-muted">Home Cleaning Service</small>
-                                    <span class="ms-2 verified-badge">Verified Customer</span>
+                <?php foreach ($reviews as $review): ?>
+                    <div class="col-md-6">
+                        <div class="card review-card h-100">
+                            <div class="card-body">
+                                <div class="d-flex align-items-center mb-3">
+                                    <img src="/api/placeholder/64/64" class="review-img me-3" alt="User">
+                                    <div>
+                                        <h6 class="mb-0"><?php echo htmlspecialchars($review['customer_name']); ?></h6>
+                                        <small class="text-muted"><?php echo htmlspecialchars($review['service_name']); ?></small>
+                                        <span class="ms-2 verified-badge">Verified Customer</span>
+                                    </div>
                                 </div>
-                            </div>
-                            <div class="star-rating mb-2">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                            </div>
-                            <h5 class="card-title">Exceptional Cleaning Service!</h5>
-                            <p class="card-text">Maria did an amazing job cleaning our home. She was thorough, professional, and paid attention to every detail. Would definitely recommend her services!</p>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <small class="text-muted">2 days ago</small>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-secondary me-2">
-                                        <i class="far fa-thumbs-up"></i> Helpful (24)
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary">
-                                        <i class="far fa-comment"></i> Reply
-                                    </button>
+                                <div class="star-rating mb-2">
+                                    <?php
+                                    $rating = $review['rating'];
+                                    for ($i = 1; $i <= 5; $i++) {
+                                        if ($i <= $rating) {
+                                            echo '<i class="fas fa-star"></i>';
+                                        } else {
+                                            echo '<i class="far fa-star"></i>';
+                                        }
+                                    }
+                                    ?>
                                 </div>
-                            </div>
-                        </div>
-                    </div>
-                </div>
-
-                <div class="col-md-6">
-                    <div class="card review-card h-100">
-                        <div class="card-body">
-                            <div class="d-flex align-items-center mb-3">
-                                <img src="/api/placeholder/64/64" class="review-img me-3" alt="User">
-                                <div>
-                                    <h6 class="mb-0">Mike Wilson</h6>
-                                    <small class="text-muted">Plumbing Service</small>
-                                    <span class="ms-2 verified-badge">Verified Customer</span>
-                                </div>
-                            </div>
-                            <div class="star-rating mb-2">
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="fas fa-star"></i>
-                                <i class="far fa-star"></i>
-                            </div>
-                            <h5 class="card-title">Quick and Professional Service</h5>
-                            <p class="card-text">John arrived on time and fixed our leaking pipe efficiently. He explained everything clearly and cleaned up afterward. Very professional service.</p>
-                            <div class="d-flex justify-content-between align-items-center mt-3">
-                                <small class="text-muted">1 week ago</small>
-                                <div>
-                                    <button class="btn btn-sm btn-outline-secondary me-2">
-                                        <i class="far fa-thumbs-up"></i> Helpful (18)
-                                    </button>
-                                    <button class="btn btn-sm btn-outline-secondary">
-                                        <i class="far fa-comment"></i> Reply
-                                    </button>
+                                <h5 class="card-title"><?php echo htmlspecialchars($review['comment']); ?></h5>
+                                <p class="card-text"><?php echo htmlspecialchars($review['comment']); ?></p>
+                                <div class="d-flex justify-content-between align-items-center mt-3">
+                                    <small class="text-muted"><?php echo date('M d, Y', strtotime($review['created_at'])); ?></small>
+                                    <div>
+                                        <button class="btn btn-sm btn-outline-secondary me-2">
+                                            <i class="far fa-thumbs-up"></i> Helpful (0)
+                                        </button>
+                                        <button class="btn btn-sm btn-outline-secondary">
+                                            <i class="far fa-comment"></i> Reply
+                                        </button>
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     </div>
-                </div>
+                <?php endforeach; ?>
             </div>
 
             <!-- Pagination -->
@@ -260,7 +262,7 @@
         </div>
     </section>
 
-    <!-- Footer (same as landing page) -->
+    <!-- Footer -->
     <footer class="bg-dark text-white py-4">
         <div class="container">
             <div class="row">

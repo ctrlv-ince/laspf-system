@@ -15,9 +15,10 @@ if (isset($_GET['delete_review'])) {
     $review_id = intval($_GET['delete_review']);
 
     // Delete the review from the database
-    $query = "DELETE FROM reviews WHERE review_id = :review_id";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([':review_id' => $review_id]);
+    $query = "DELETE FROM reviews WHERE review_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $review_id);
+    $stmt->execute();
 
     // Redirect to refresh the page
     header("Location: admin_reviews.php");
@@ -33,10 +34,12 @@ $query = "
     JOIN providers p ON r.provider_id = p.provider_id
     ORDER BY r.created_at DESC
 ";
-$stmt = $pdo->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->execute();
-$reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$result = $stmt->get_result();
+$reviews = $result->fetch_all(MYSQLI_ASSOC);
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -94,7 +97,7 @@ $reviews = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
+                        <a href="../logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>

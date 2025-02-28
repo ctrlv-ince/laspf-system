@@ -1,3 +1,44 @@
+<?php
+session_start();
+
+// Include the database configuration
+require_once 'database/config.php';
+
+// Fetch featured services
+$query = "
+    SELECT s.service_id, s.service_name, s.service_description, s.price, p.business_name, p.service_category
+    FROM services s
+    JOIN providers p ON s.provider_id = p.provider_id
+    ORDER BY RAND()
+    LIMIT 3
+";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$result = $stmt->get_result();
+$featured_services = $result->fetch_all(MYSQLI_ASSOC);
+
+// Fetch unique service categories
+$query = "SELECT DISTINCT service_category FROM providers";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$result = $stmt->get_result();
+$categories = $result->fetch_all(MYSQLI_ASSOC);
+
+// Fetch latest reviews
+$query = "
+    SELECT r.rating, r.comment, u.full_name AS customer_name, p.business_name
+    FROM reviews r
+    JOIN users u ON r.customer_id = u.user_id
+    JOIN providers p ON r.provider_id = p.provider_id
+    ORDER BY r.created_at DESC
+    LIMIT 3
+";
+$stmt = $conn->prepare($query);
+$stmt->execute();
+$result = $stmt->get_result();
+$testimonials = $result->fetch_all(MYSQLI_ASSOC);
+?>
+
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -9,7 +50,7 @@
     <style>
         .hero-section {
             background: linear-gradient(rgba(0, 0, 0, 0.6), rgba(0, 0, 0, 0.6)),
-                        url('/api/placeholder/1920/1080') center/cover no-repeat;
+                        url('/images/hero.jpg') center/cover no-repeat;
             min-height: 80vh;
             display: flex;
             align-items: center;
@@ -44,10 +85,10 @@
                 <ul class="navbar-nav ms-auto">
                     <li class="nav-item"><a class="nav-link" href="#services">Services</a></li>
                     <li class="nav-item"><a class="nav-link" href="#how-it-works">How It Works</a></li>
-                    <li class="nav-item"><a class="nav-link" href="./reviews.php">Reviews</a></li>
-                    <li class="nav-item"><a class="btn btn-primary ms-lg-3" href="./providers/provider_registration.php">Join as Provider</a></li>
+                    <li class="nav-item"><a class="nav-link" href="reviews.php">Reviews</a></li>
+                    <li class="nav-item"><a class="btn btn-primary ms-lg-3" href="providers/provider_registration.php">Join as Provider</a></li>
                     <li class="nav-item"><a class="btn btn-outline-primary ms-lg-2" href="login.php">Login</a></li>
-                    <li class="nav-item"><a class="btn btn-success ms-lg-2" href="./users/user_registration.php">Register as User</a></li>
+                    <li class="nav-item"><a class="btn btn-success ms-lg-2" href="users/user_registration.php">Register as User</a></li>
                 </ul>
             </div>
         </div>
@@ -60,9 +101,9 @@
                 <div class="col-lg-6">
                     <h1 class="display-4 fw-bold mb-4">Find Trusted Local Service Providers</h1>
                     <p class="lead mb-4">Connect with verified professionals for all your service needs. Book appointments easily and get the job done right.</p>
-                    <form class="row g-3">
+                    <form class="row g-3" action="user_bookings.php" method="GET">
                         <div class="col-md-8">
-                            <input type="text" class="form-control form-control-lg" placeholder="What service do you need?">
+                            <input type="text" class="form-control form-control-lg" name="search" placeholder="What service do you need?">
                         </div>
                         <div class="col-md-4">
                             <button class="btn btn-primary btn-lg w-100">Search</button>
@@ -73,62 +114,23 @@
         </div>
     </section>
 
-    <!-- Featured Categories -->
+    <!-- Featured Services -->
     <section class="py-5" id="services">
         <div class="container">
             <h2 class="text-center mb-5">Popular Services</h2>
             <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card category-card h-100">
-                        <img src="/api/placeholder/400/300" class="card-img-top" alt="Home Cleaning">
-                        <div class="card-body">
-                            <h5 class="card-title">Home Cleaning</h5>
-                            <p class="card-text">Professional cleaning services for your home</p>
+                <?php foreach ($featured_services as $service): ?>
+                    <div class="col-md-4">
+                        <div class="card category-card h-100">
+                            <img src="images/service-placeholder.jpg" class="card-img-top" alt="<?php echo htmlspecialchars($service['service_name']); ?>">
+                            <div class="card-body">
+                                <h5 class="card-title"><?php echo htmlspecialchars($service['service_name']); ?></h5>
+                                <p class="card-text"><?php echo htmlspecialchars($service['service_description']); ?></p>
+                                <p class="text-muted"><small>Provider: <?php echo htmlspecialchars($service['business_name']); ?></small></p>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card category-card h-100">
-                        <img src="/api/placeholder/400/300" class="card-img-top" alt="Plumbing">
-                        <div class="card-body">
-                            <h5 class="card-title">Plumbing</h5>
-                            <p class="card-text">Expert plumbing repairs and installations</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card category-card h-100">
-                        <img src="/api/placeholder/400/300" class="card-img-top" alt="Electrical">
-                        <div class="card-body">
-                            <h5 class="card-title">Electrical</h5>
-                            <p class="card-text">Licensed electricians for all your needs</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </section>
-
-    <!-- How It Works -->
-    <section class="bg-light py-5" id="how-it-works">
-        <div class="container">
-            <h2 class="text-center mb-5">How It Works</h2>
-            <div class="row g-4">
-                <div class="col-md-4 text-center">
-                    <i class="fas fa-search feature-icon"></i>
-                    <h4>Search</h4>
-                    <p>Find the right service provider for your needs</p>
-                </div>
-                <div class="col-md-4 text-center">
-                    <i class="fas fa-calendar-alt feature-icon"></i>
-                    <h4>Book</h4>
-                    <p>Schedule an appointment at your convenience</p>
-                </div>
-                <div class="col-md-4 text-center">
-                    <i class="fas fa-check-circle feature-icon"></i>
-                    <h4>Done</h4>
-                    <p>Get your service done by verified professionals</p>
-                </div>
+                <?php endforeach; ?>
             </div>
         </div>
     </section>
@@ -138,74 +140,26 @@
         <div class="container">
             <h2 class="text-center mb-5">What Our Customers Say</h2>
             <div class="row g-4">
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <img src="/api/placeholder/80/80" class="testimonial-img mb-3" alt="Customer">
-                            <p class="card-text">"Amazing service! Found a great cleaner for my home. Highly recommended!"</p>
-                            <h5 class="card-title mb-1">Sarah Johnson</h5>
-                            <small class="text-muted">Home Cleaning Customer</small>
+                <?php foreach ($testimonials as $testimonial): ?>
+                    <div class="col-md-4">
+                        <div class="card h-100">
+                            <div class="card-body text-center">
+                                <img src="images/user-placeholder.jpg" class="testimonial-img mb-3" alt="Customer">
+                                <p class="card-text">"<?php echo htmlspecialchars($testimonial['comment']); ?>"</p>
+                                <h5 class="card-title mb-1"><?php echo htmlspecialchars($testimonial['customer_name']); ?></h5>
+                                <small class="text-muted">Service Provider: <?php echo htmlspecialchars($testimonial['business_name']); ?></small>
+                            </div>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <img src="/api/placeholder/80/80" class="testimonial-img mb-3" alt="Customer">
-                            <p class="card-text">"Quick response and professional service. Will use again!"</p>
-                            <h5 class="card-title mb-1">Mike Wilson</h5>
-                            <small class="text-muted">Plumbing Customer</small>
-                        </div>
-                    </div>
-                </div>
-                <div class="col-md-4">
-                    <div class="card h-100">
-                        <div class="card-body text-center">
-                            <img src="/api/placeholder/80/80" class="testimonial-img mb-3" alt="Customer">
-                            <p class="card-text">"Easy booking process and excellent service quality."</p>
-                            <h5 class="card-title mb-1">Emily Brown</h5>
-                            <small class="text-muted">Electrical Customer</small>
-                        </div>
-                    </div>
-                </div>
+                <?php endforeach; ?>
             </div>
-        </div>
-    </section>
-
-    <!-- Call to Action -->
-    <section class="bg-primary text-white py-5" id="join">
-        <div class="container text-center">
-            <h2 class="mb-4">Are You a Service Provider?</h2>
-            <p class="lead mb-4">Join our platform and grow your business</p>
-            <a href="./providers/registrationprovider.php" class="btn btn-light btn-lg px-4">Join Now</a>
         </div>
     </section>
 
     <!-- Footer -->
     <footer class="bg-dark text-white py-4">
-        <div class="container">
-            <div class="row">
-                <div class="col-md-4">
-                    <h5>GoSeekr</h5>
-                    <p>Connecting quality service providers with customers</p>
-                </div>
-                <div class="col-md-4">
-                    <h5>Quick Links</h5>
-                    <ul class="list-unstyled">
-                        <li><a href="#" class="text-white">About Us</a></li>
-                        <li><a href="#" class="text-white">Services</a></li>
-                        <li><a href="#" class="text-white">Contact</a></li>
-                    </ul>
-                </div>
-                <div class="col-md-4">
-                    <h5>Follow Us</h5>
-                    <div class="d-flex gap-3">
-                        <a href="#" class="text-white"><i class="fab fa-facebook"></i></a>
-                        <a href="#" class="text-white"><i class="fab fa-twitter"></i></a>
-                        <a href="#" class="text-white"><i class="fab fa-instagram"></i></a>
-                    </div>
-                </div>
-            </div>
+        <div class="container text-center">
+            <p>&copy; <?php echo date('Y'); ?> GoSeekr. All rights reserved.</p>
         </div>
     </footer>
 

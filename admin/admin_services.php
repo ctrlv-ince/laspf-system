@@ -15,9 +15,10 @@ if (isset($_GET['delete_service'])) {
     $service_id = intval($_GET['delete_service']);
 
     // Delete the service from the database
-    $query = "DELETE FROM services WHERE service_id = :service_id";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([':service_id' => $service_id]);
+    $query = "DELETE FROM services WHERE service_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $service_id);
+    $stmt->execute();
 
     // Redirect to refresh the page
     header("Location: admin_services.php");
@@ -32,9 +33,10 @@ $query = "
     JOIN providers p ON s.provider_id = p.provider_id
     ORDER BY s.service_name ASC
 ";
-$stmt = $pdo->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->execute();
-$services = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$result = $stmt->get_result();
+$services = $result->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -93,7 +95,7 @@ $services = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
+                        <a href="../logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>

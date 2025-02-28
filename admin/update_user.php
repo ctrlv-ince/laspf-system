@@ -25,21 +25,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         exit();
     }
 
-    // Update the user in the database
+    // Update the user in the database using MySQLi
     $query = "
         UPDATE users
-        SET username = :username,
-            email = :email,
-            role = :role
-        WHERE user_id = :user_id
+        SET username = ?, 
+            email = ?, 
+            role = ? 
+        WHERE user_id = ?
     ";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([
-        ':username' => $username,
-        ':email' => $email,
-        ':role' => $role,
-        ':user_id' => $user_id
-    ]);
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("sssi", $username, $email, $role, $user_id);
+    $stmt->execute();
 
     // Redirect back to the users page with a success message
     $_SESSION['success'] = "User updated successfully!";
@@ -50,3 +46,4 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     header("Location: admin_users.php");
     exit();
 }
+?>

@@ -7,23 +7,22 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-// Include the database configuration
+// Include database configuration
 require_once '../database/config.php';
 
 // Fetch key metrics
-$query = "
+$sql = "
     SELECT 
         (SELECT COUNT(*) FROM users) AS total_users,
         (SELECT COUNT(*) FROM providers) AS total_providers,
         (SELECT COUNT(*) FROM bookings) AS total_bookings,
         (SELECT COUNT(*) FROM reviews) AS total_reviews
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute();
-$metrics = $stmt->fetch(PDO::FETCH_ASSOC);
+$result = $conn->query($sql);
+$metrics = $result->fetch_assoc();
 
 // Fetch recent bookings
-$query = "
+$sql = "
     SELECT b.booking_id, b.start_time, b.end_time, b.status,
            u.full_name AS customer_name, p.business_name AS provider_name
     FROM bookings b
@@ -32,12 +31,14 @@ $query = "
     ORDER BY b.start_time DESC
     LIMIT 5
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute();
-$recent_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$result = $conn->query($sql);
+$recent_bookings = [];
+while ($row = $result->fetch_assoc()) {
+    $recent_bookings[] = $row;
+}
 
 // Fetch data for charts
-$query = "
+$sql = "
     SELECT 
         DATE_FORMAT(b.start_time, '%Y-%m') AS month,
         COUNT(*) AS bookings_count,
@@ -48,21 +49,23 @@ $query = "
     ORDER BY month ASC
     LIMIT 6
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute();
-$chart_data = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-// Prepare data for Chart.js
+$result = $conn->query($sql);
+$chart_data = [];
 $labels = [];
 $bookings_data = [];
 $revenue_data = [];
 
-foreach ($chart_data as $row) {
+while ($row = $result->fetch_assoc()) {
+    $chart_data[] = $row;
     $labels[] = date('M Y', strtotime($row['month']));
     $bookings_data[] = $row['bookings_count'];
     $revenue_data[] = $row['total_revenue'];
 }
+
+// Close database connection
+$conn->close();
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -174,7 +177,7 @@ foreach ($chart_data as $row) {
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
+                        <a href="../logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>

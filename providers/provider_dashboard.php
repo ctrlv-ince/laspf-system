@@ -12,10 +12,12 @@ require_once '../database/config.php';
 
 // Fetch provider details
 $provider_id = $_SESSION['user_id'];
-$query = "SELECT * FROM providers WHERE user_id = :user_id";
-$stmt = $pdo->prepare($query);
-$stmt->execute([':user_id' => $provider_id]);
-$provider = $stmt->fetch(PDO::FETCH_ASSOC);
+$query = "SELECT * FROM providers WHERE user_id = ?";
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $provider_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$provider = $result->fetch_assoc();
 
 // Fetch recent bookings
 $query = "
@@ -24,36 +26,43 @@ $query = "
     FROM bookings b
     JOIN services s ON b.service_id = s.service_id
     JOIN users u ON b.customer_id = u.user_id
-    WHERE b.provider_id = :provider_id
+    WHERE b.provider_id = ?
     ORDER BY b.start_time DESC
     LIMIT 5
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute([':provider_id' => $provider_id]);
-$recent_bookings = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $provider_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$recent_bookings = $result->fetch_all(MYSQLI_ASSOC);
 
 // Fetch total earnings
 $query = "
     SELECT SUM(provider_earnings) AS total_earnings
     FROM payments
     WHERE booking_id IN (
-        SELECT booking_id FROM bookings WHERE provider_id = :provider_id
+        SELECT booking_id FROM bookings WHERE provider_id = ?
     )
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute([':provider_id' => $provider_id]);
-$total_earnings = $stmt->fetch(PDO::FETCH_ASSOC)['total_earnings'] ?? 0;
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $provider_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$total_earnings = $result->fetch_assoc()['total_earnings'] ?? 0;
 
 // Fetch total reviews
 $query = "
     SELECT COUNT(*) AS total_reviews
     FROM reviews
-    WHERE provider_id = :provider_id
+    WHERE provider_id = ?
 ";
-$stmt = $pdo->prepare($query);
-$stmt->execute([':provider_id' => $provider_id]);
-$total_reviews = $stmt->fetch(PDO::FETCH_ASSOC)['total_reviews'] ?? 0;
+$stmt = $conn->prepare($query);
+$stmt->bind_param("i", $provider_id);
+$stmt->execute();
+$result = $stmt->get_result();
+$total_reviews = $result->fetch_assoc()['total_reviews'] ?? 0;
 ?>
+
 
 <!DOCTYPE html>
 <html lang="en">
@@ -88,7 +97,7 @@ $total_reviews = $stmt->fetch(PDO::FETCH_ASSOC)['total_reviews'] ?? 0;
                         <a class="nav-link" href="provider_services.php">Manage Services</a>
                     </li>
                     <li class="nav-item">
-                        <a class="nav-link" href="logout.php">Logout</a>
+                        <a class="nav-link" href="../logout.php">Logout</a>
                     </li>
                 </ul>
             </div>

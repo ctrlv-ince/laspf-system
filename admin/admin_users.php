@@ -7,7 +7,10 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit();
 }
 
-//Success messages
+// Include the database configuration
+require_once '../database/config.php';
+
+// Success messages
 if (isset($_SESSION['success'])) {
     echo '<div class="alert alert-success">' . $_SESSION['success'] . '</div>';
     unset($_SESSION['success']);
@@ -17,17 +20,15 @@ if (isset($_SESSION['error'])) {
     unset($_SESSION['error']);
 }
 
-// Include the database configuration
-require_once '../database/config.php';
-
 // Handle Delete Action
 if (isset($_GET['delete_user'])) {
     $user_id = intval($_GET['delete_user']);
 
     // Delete the user from the database
-    $query = "DELETE FROM users WHERE user_id = :user_id";
-    $stmt = $pdo->prepare($query);
-    $stmt->execute([':user_id' => $user_id]);
+    $query = "DELETE FROM users WHERE user_id = ?";
+    $stmt = $conn->prepare($query);
+    $stmt->bind_param("i", $user_id);
+    $stmt->execute();
 
     // Redirect to refresh the page
     header("Location: admin_users.php");
@@ -36,9 +37,10 @@ if (isset($_GET['delete_user'])) {
 
 // Fetch all users from the database
 $query = "SELECT user_id, username, email, role, created_at FROM users ORDER BY created_at DESC";
-$stmt = $pdo->prepare($query);
+$stmt = $conn->prepare($query);
 $stmt->execute();
-$users = $stmt->fetchAll(PDO::FETCH_ASSOC);
+$result = $stmt->get_result();
+$users = $result->fetch_all(MYSQLI_ASSOC);
 ?>
 
 <!DOCTYPE html>
@@ -97,7 +99,7 @@ $users = $stmt->fetchAll(PDO::FETCH_ASSOC);
                             <span class="status-indicator status-online"></span>
                             Admin User
                         </div>
-                        <a href="logout.php" class="btn btn-outline-danger btn-sm">
+                        <a href="../logout.php" class="btn btn-outline-danger btn-sm">
                             <i class="fas fa-sign-out-alt"></i> Logout
                         </a>
                     </div>

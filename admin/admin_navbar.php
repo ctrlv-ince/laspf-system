@@ -1,6 +1,6 @@
 <div class="col-md-3 col-lg-2 px-0 sidebar">
     <div class="text-white p-3">
-        <h5>ServiceHub Admin</h5>
+        <h5>GoSeekr Admin</h5>
     </div>
     <ul class="nav flex-column">
         <li class="nav-item">
